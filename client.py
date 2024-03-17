@@ -14,6 +14,20 @@ file_name = None
 server_host = None
 client = None
 
+packets_sent = [] # MAYBE SORT BY SEQUENCE NUMBER? --> Binary search for correct sequence
+current_sequence_num = -1
+
+identifications = []
+
+"""
+DROPPED PACKETS
+settimeout
+- If timed out, nothing was received.
+
+delay packets (max/min)
+- % chance to drop currently delayed packets
+"""
+
 
 def main():
     check_args(sys.argv)
@@ -138,6 +152,42 @@ def cleanup(success):
     if success:
         exit(0)
     exit(1)
+
+def three_handshake():
+    send_syn()
+    receive_syn_ack()
+    send_ack()
+
+def send_syn():
+    print("SYN")
+
+def receive_syn_ack():
+    print("REC SYN ACK")
+
+def send_ack():
+    print("ACK")
+
+def create_identification():
+    print("CREATE ID")
+
+def create_sequence():
+    print("CREATE SEQUENCE")
+
+def four_handshake():
+    send_fin()
+    receive_fin_ack()
+    send_ack()
+
+def send_fin():
+    print("SEND FIN")
+
+def receive_fin_ack():
+    print("REC FIN ACK")
+
+def send_sequence_packet():
+    print("SEND SEQUENCE PACKET")
+
+
 
 if __name__ == "__main__":
     main()

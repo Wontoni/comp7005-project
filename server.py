@@ -9,6 +9,10 @@ server = None
 server_host = "::"
 server_port = 8080
 
+received_ids = []
+last_sequence = -1
+connections = {}
+
 def main():
     try:
         create_socket()
@@ -53,7 +57,6 @@ def accept_connection():
                 remaining_data_size = data_size - len(receieved_data)
             data = pickle.loads(receieved_data)
             print(data)
-            print("SENT BITCH")
             return data, address
     except Exception as e:
         handle_error(e)
@@ -131,5 +134,49 @@ def cleanup(success):
     if success:
         exit(0)
     exit(1)
+
+def create_ack():
+    print("ACK")
+
+def send_ack():
+    print("KNOWLEDGEMENT")
+
+def three_handshake():
+    send_syn()
+    receive_syn_ack()
+    send_ack()
+
+def send_syn():
+    print("SYN")
+
+def receive_syn_ack():
+    print("REC SYN ACK")
+
+def send_ack():
+    print("SEND ACK")
+
+def four_handshake():
+    send_fin()
+    receive_fin_ack()
+    send_ack()
+
+def send_fin():
+    print("SEND FIN")
+
+def receive_fin_ack():
+    print("REC FIN ACK")
+
+def check_sequence():
+    print("SEQUENCE")
+
+def request_sequence():
+    print("CORRECT")
+
+def wait_sequence():
+    print("WAIT")
+
+def check_indentification():
+    print("DUPLICATES")
+
 
 main()
