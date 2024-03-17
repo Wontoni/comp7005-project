@@ -7,7 +7,7 @@ import pickle
 # Variables to change based on server host location
 
 # Change to ipv4 for connection via IPv4 Address or ipv6 for IPv6
-server_port = 8080
+server_port = 8081
 
 
 file_name = None

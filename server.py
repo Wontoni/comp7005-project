@@ -45,7 +45,6 @@ def accept_connection():
             data_size = struct.unpack(">I", data)[0]
             receieved_data = b""
             remaining_data_size = data_size
-
             if not data_size:
                 raise Exception("Failed to receive data")
             
@@ -53,6 +52,8 @@ def accept_connection():
                 receieved_data += server.recv(remaining_data_size)
                 remaining_data_size = data_size - len(receieved_data)
             data = pickle.loads(receieved_data)
+            print(data)
+            print("SENT BITCH")
             return data, address
     except Exception as e:
         handle_error(e)
