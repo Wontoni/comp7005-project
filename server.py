@@ -2,25 +2,34 @@ import socket
 import re
 import struct
 import pickle
-
+import random
+from packet import Packet
 
 connection = None
 server = None
 server_host = "::"
 server_port = 8080
 
-received_ids = []
 last_sequence = -1
+acknowledgement = -1
+
 connections = {}
+UPPER_SEQUENCE = 9000
+LOWER_SEQUENCE = 1000
+MAX_DATA = 4096
+SYN = "SYN"
+ACK = "ACK"
+PSH = "PSH"
+FIN = "FIN"
 
 def main():
     try:
         create_socket()
         bind_socket()
         while True:
-            data, address = accept_connection()
-            formatted_data = handle_data(data)
-            send_message(formatted_data, address)
+            accept_packet()
+            # formatted_data = handle_data(data)
+            # send_message(formatted_data, address)
     except Exception as e:
         handle_error("Failed to receive data from client")
 
@@ -28,7 +37,6 @@ def create_socket():
     try:
         global server
         server = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        print("Server is running...")
     except Exception as e:
         handle_error("Failed to create socket server")
 
@@ -36,30 +44,9 @@ def bind_socket():
     try:
         addr = (server_host, server_port)
         server.bind(addr)
-        print('Server binded and waiting for incoming connections...')
+        print(f'Server is running and waiting for incoming connections on port {server_port}...')
     except Exception as e:
         handle_error("Failed to bind to the server")
-
-def accept_connection():
-    try:
-        while True:
-            data, address = server.recvfrom(4) 
-            print("Received connection from", address)
-
-            data_size = struct.unpack(">I", data)[0]
-            receieved_data = b""
-            remaining_data_size = data_size
-            if not data_size:
-                raise Exception("Failed to receive data")
-            
-            while remaining_data_size != 0:
-                receieved_data += server.recv(remaining_data_size)
-                remaining_data_size = data_size - len(receieved_data)
-            data = pickle.loads(receieved_data)
-            print(data)
-            return data, address
-    except Exception as e:
-        handle_error(e)
 
 def send_message(words, address): 
     try: 
@@ -135,30 +122,14 @@ def cleanup(success):
         exit(0)
     exit(1)
 
-def create_ack():
-    print("ACK")
-
-def send_ack():
-    print("KNOWLEDGEMENT")
-
-def three_handshake():
-    send_syn()
-    receive_syn_ack()
-    send_ack()
-
-def send_syn():
-    print("SYN")
-
-def receive_syn_ack():
-    print("REC SYN ACK")
+def send_syn_ack(address):
+    if last_sequence < 0:
+        handle_error("Invalid sequence number")
+    packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=["SYN", "ACK"])
+    send_packet(packet, address)
 
 def send_ack():
     print("SEND ACK")
-
-def four_handshake():
-    send_fin()
-    receive_fin_ack()
-    send_ack()
 
 def send_fin():
     print("SEND FIN")
@@ -175,8 +146,45 @@ def request_sequence():
 def wait_sequence():
     print("WAIT")
 
-def check_indentification():
-    print("DUPLICATES")
+def create_sequence():
+    global last_sequence
+    try:
+        last_sequence = random.randint(LOWER_SEQUENCE, UPPER_SEQUENCE)
+    except Exception as e:
+        handle_error("Failed to initialize sequence.")
 
+def check_flags(packet, address):
+    global last_sequence, acknowledgement
+    if SYN in packet.flags:
+        create_sequence()
+        acknowledgement = packet.sequence + 1
+        send_syn_ack(address)
+    elif packet.sequence == acknowledgement:
+        acknowledgement = packet.sequence + 1
+        if ACK in packet.flags and PSH not in packet.flags and FIN not in packet.flags:
+            print("RECEIVED AN ACK - CONNECTION HAS OFFICIALY BEEN ESTABLISHED")
+        elif ACK in packet.flags and PSH in packet.flags:
+            print("RECEIVED ACK PSH - RECEIVED DATA")
+        else:
+            # last_sequence -= 1 # SHOULD THIS BE DONE?
+            print("IMPROPER FLAGS SET IN PACKET")
+            print("MAYBE RESEND PACKET?")
+    else:
+        print("WRONG SEQUENCE FOUND - HANDLE WRONG ORDER")
+
+def send_packet(packet, address):
+    global last_sequence
+    data = pickle.dumps(packet)
+    last_sequence += 1
+    server.sendto(data, address)
+
+def accept_packet():
+    try:
+        data, address = server.recvfrom(MAX_DATA) 
+        print("Received packet from", address)
+        packet = pickle.loads(data)
+        check_flags(packet, address)
+    except Exception as e:
+        handle_error(e)
 
 main()
