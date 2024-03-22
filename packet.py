@@ -16,4 +16,4 @@ class Packet:
         """
         Print the details of the packet.
         """
-        print(f"Packet Info - Sequence: {self.sequence}, Ack: {self.acknowledgement}, Flags: {self.flags}, Data: ")
+        print(f"Packet Info - Sequence: {self.sequence}, Ack: {self.acknowledgement}, Flags: {self.flags}, Data: {self.data} ")

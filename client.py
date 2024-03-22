@@ -19,6 +19,7 @@ client = None
 UPPER_SEQUENCE = 9000
 LOWER_SEQUENCE = 1000
 MAX_DATA = 4096
+MAX_HEADER = 256
 SYN = "SYN"
 ACK = "ACK"
 PSH = "PSH"
@@ -29,6 +30,7 @@ last_sequence = -1
 expected_sequence = -1
 acknowledgement = -1
 
+processed_data=''
 
 """
 DROPPED PACKETS
@@ -41,12 +43,12 @@ delay packets (max/min)
 
 
 def main():
-    global maxwell
+    global processed_data
     check_args(sys.argv)
     handle_args(sys.argv)
-    words = read_file()
+    processed_data = read_file()
 
-    if words:
+    if processed_data:
         create_socket()
         connect_client()
         # send_message(words)
@@ -84,7 +86,7 @@ def create_socket():
 def connect_client():
     try: 
         client.settimeout(10)
-        client.connect((server_host, server_port))
+        client.connect(('localhost', server_port))
         three_handshake()
         while True:
             accept_packet()
@@ -136,6 +138,7 @@ def display_message(message):
     cleanup(True)
 
 def cleanup(success):
+    print("CLOSING CONNECTION")
     if client:
         client.close()
     if success:
@@ -149,26 +152,32 @@ def three_handshake():
     create_packet([ACK])
 
 def transmit_data():
-    # ! INCOMPLETE
     try:
-        while True:
-            # Handle data here
-            data = pickle.dumps("TEST DATA")
-            create_packet(flags=[ACK, PSH], data=data)
+        data = pickle.dumps(processed_data)
 
-            if not data:
-                four_handshake()
+        # Split data into chunks
+        chunk_size = MAX_DATA - MAX_HEADER
+        chunks = [data[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
+        for chunk in chunks:
+            create_packet(flags=[ACK, PSH], data=chunk)
+            accept_packet()
+
+        # DATA SHOULD BE DONE TRANSMITTING
+        four_handshake()
     except Exception as e:
         handle_error(e)
 
 def four_handshake():
+    print("STARTING FOURWAY HANDSHAKE")
     create_packet([FIN])
     accept_packet()
     create_packet([ACK])
+    for packet in packets_sent:
+        packet.display_info()
     cleanup(True)
 
 def create_packet(flags=[], data=b''):
-    crafter_packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=flags)
+    crafter_packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=flags, data=data)
     send_packet(crafter_packet)
 
 def create_sequence():
@@ -179,7 +188,8 @@ def send_sequence_packet():
     print("SEND SEQUENCE PACKET")
 
 def send_packet(packet):
-    global last_sequence
+    global last_sequence, packets_sent
+    packets_sent.append(packet)
     last_sequence += 1
     data = pickle.dumps(packet)
     client.sendall(data)
@@ -191,26 +201,23 @@ def accept_packet():
     check_flags(packet)
 
 def check_flags(packet):
-    packet.display_info()
     global last_sequence, acknowledgement
-    print(f"Last: {last_sequence}")
-    print(f"Received: {packet.sequence}")
-    print(f"Acknowledgement: {acknowledgement}")
     if SYN in packet.flags and ACK in packet.flags:
         last_sequence = packet.acknowledgement
         acknowledgement = packet.sequence + 1
         print("RECEIVED A SYN ACK")
         create_packet([ACK])
+        transmit_data()
     elif ACK in packet.flags:
         if packet.sequence == acknowledgement:
             acknowledgement = packet.sequence + 1
             if PSH not in packet.flags:
-                print("RECEIVED AN ACK - CONNECTION HAS OFFICIALY BEEN ESTABLISHED")
+                print("RECEIVED AN ACK")
             elif PSH in packet.flags:
                 print("RECEIVED ACK PSH - RECEIVED DATA")
             else:
                 print("IMPROPER FLAGS SET IN PACKET")
-                print("MAYBE RESEND PACKET?")
+                print("MAYBE RESEND PACKET?") # RESET/FIN
         else:
             print("WRONG ORDER - FIX SEQUENCE")
     else:

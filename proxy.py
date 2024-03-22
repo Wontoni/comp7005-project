@@ -1,35 +1,61 @@
 import socket
-import random
-import struct
-import pickle
+import select
 
-# Proxy server configuration
-proxy_host = "::"  # Listening on all IPv6 addresses
-proxy_port = 8081  # Port number for the proxy server to listen on
-
-# Destination server configuration
-server_host = "::1"  # The IPv6 address of the destination server
-server_port = 8080  # The port number of the destination server
-MAX_DATA = 4096
+def forward_data(message, source_address, destination_socket, destination_address):
+    """Forwards data from the source to the destination."""
+    destination_socket.sendto(message, destination_address)
 
 def main():
-    with socket.socket(socket.AF_INET6, socket.SOCK_DGRAM) as proxy_socket:
-        proxy_socket.bind((proxy_host, proxy_port))
-        print(f"Proxy server running and listening on port {proxy_port}...")
-        forward_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-        while True:
-            data, client_address = proxy_socket.recvfrom(MAX_DATA)
-            
-            # Forward data to the server
-            forward_socket.sendto(data, (server_host, server_port))
-            print(f"Forwarded data to server at {server_host}:{server_port}")
+    # Proxy server configuration
+    proxy_host = "::"
+    proxy_port = 8081
+    server_address = ('::1', 8080)  # Change to the target server's IP and port
 
-            # Wait for response from server
-            server_data, _ = forward_socket.recvfrom(MAX_DATA)
+    # Create a UDP socket for the proxy
+    proxy_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    proxy_socket.bind((proxy_host, proxy_port))
 
-            # Send response back to client
-            proxy_socket.sendto(server_data, client_address)
-            print("Sent response back to client")
+    print(f"[*] Listening for UDP traffic on {proxy_host}:{proxy_port}")
 
-if __name__ == "__main__":
+    # Sockets from which we expect to read (in this case, only one)
+    inputs = [proxy_socket]
+
+    # Client addresses and their corresponding server sockets
+    client_addresses = {}
+
+    while True:
+        readable, writable, exceptional = select.select(inputs, [], inputs, 0.1)
+
+        for s in readable:
+            if s is proxy_socket:
+                # Receive data from a client
+                data, address = s.recvfrom(4096)
+                print(f"[*] Received data from {address}")
+
+                if address not in client_addresses:
+                    # Create a new UDP socket for communicating with the server
+                    server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+                    client_addresses[address] = (server_socket, server_address)
+                    inputs.append(server_socket)
+                
+                # Forward the data to the server
+                forward_data(data, address, *client_addresses[address])
+
+        for s in exceptional:
+            print(f"[*] Exceptional condition on {s}")
+            inputs.remove(s)
+            s.close()
+
+        # Check if any server sockets have data to forward back to the client
+        for client_address, (server_socket, server_address) in client_addresses.items():
+            while True:
+                ready = select.select([server_socket], [], [], 0.1)[0]
+                if ready:
+                    data, _ = server_socket.recvfrom(4096)
+                    if data:
+                        proxy_socket.sendto(data, client_address)
+                else:
+                    break
+
+if __name__ == '__main__':
     main()

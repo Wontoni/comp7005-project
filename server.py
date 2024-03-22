@@ -12,6 +12,7 @@ server_port = 8080
 
 last_sequence = -1
 acknowledgement = -1
+fourway = False
 
 connections = {}
 UPPER_SEQUENCE = 9000
@@ -119,26 +120,26 @@ def cleanup(success):
     if server:
         server.close()
     if success:
-        exit(0)
+        main()
+        # exit(0)
     exit(1)
 
 def send_syn_ack(address):
     if last_sequence < 0:
         handle_error("Invalid sequence number")
     packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=["SYN", "ACK"])
+    print("SENDING SYN ACK")
     send_packet(packet, address)
 
-def send_ack():
-    print("SEND ACK")
+def send_ack(destination):
+    create_packet(destination_address=destination, flags=[ACK])
+    # TRY EXCEPT
 
 def send_fin():
     print("SEND FIN")
 
-def receive_fin_ack():
-    print("REC FIN ACK")
-
-def check_sequence():
-    print("SEQUENCE")
+def send_fin_ack(destination):
+    create_packet(destination_address=destination, flags=[FIN, ACK])
 
 def request_sequence():
     print("CORRECT")
@@ -154,23 +155,42 @@ def create_sequence():
         handle_error("Failed to initialize sequence.")
 
 def check_flags(packet, address):
-    global last_sequence, acknowledgement
+    global last_sequence, acknowledgement, fourway
     if SYN in packet.flags:
         create_sequence()
         acknowledgement = packet.sequence + 1
         send_syn_ack(address)
     elif packet.sequence == acknowledgement:
         acknowledgement = packet.sequence + 1
-        if ACK in packet.flags and PSH not in packet.flags and FIN not in packet.flags:
+        if ACK in packet.flags and PSH not in packet.flags and FIN not in packet.flags and not fourway:
             print("RECEIVED AN ACK - CONNECTION HAS OFFICIALY BEEN ESTABLISHED")
-        elif ACK in packet.flags and PSH in packet.flags:
+        elif ACK in packet.flags and PSH in packet.flags: 
             print("RECEIVED ACK PSH - RECEIVED DATA")
+            data = pickle.loads(packet.data)
+            print(data)
+
+            if data:
+                send_ack(address)
+            else:
+                print("ERROR SEND RETRANSMISSION")
+        elif FIN in packet.flags:
+            # CHECK CONDITION FOR ENDING - MAYBE
+            send_fin_ack(address)
+            fourway = True
+        elif ACK in packet.flags: # End of fourway - find better way to impleement
+            print("CLOSING CONNECTION")
+            cleanup(True)
         else:
             # last_sequence -= 1 # SHOULD THIS BE DONE?
             print("IMPROPER FLAGS SET IN PACKET")
             print("MAYBE RESEND PACKET?")
     else:
         print("WRONG SEQUENCE FOUND - HANDLE WRONG ORDER")
+
+def create_packet(destination_address, flags=[], data=b''):
+    crafter_packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=flags, data=data)
+    send_packet(crafter_packet, destination_address)
+
 
 def send_packet(packet, address):
     global last_sequence
