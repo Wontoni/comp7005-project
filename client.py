@@ -65,7 +65,7 @@ def check_args(args):
             raise Exception("Invalid number of arguments")
         elif not args[1].endswith('.txt'):
             raise Exception("Invalid file extension, please input a .txt file")
-        #is_ipv4(args[2]) # Will handle invalid addresses
+        is_ipv4(args[2]) # Will handle invalid addresses
     except Exception as e:
         handle_error(e)
         exit(1)
@@ -83,7 +83,7 @@ def create_socket():
     try: 
         global client
         # INET = IPv4 /// INET6 = IPv6
-        client = socket.socket((socket.AF_INET6, socket.AF_INET)[True], socket.SOCK_DGRAM)
+        client = socket.socket((socket.AF_INET6, socket.AF_INET)[is_ipv4(server_host)], socket.SOCK_DGRAM)
 
     except Exception as e:
         handle_error("Failed to create client socket")
@@ -199,7 +199,7 @@ def send_packet(packet):
 
 def accept_packet():
     try:
-        global retransmission_time
+        global retransmission_time, retransimssion_attempts
         client.settimeout(retransmission_time)
         data, address = client.recvfrom(MAX_DATA) 
         print("Received packet from", address)
