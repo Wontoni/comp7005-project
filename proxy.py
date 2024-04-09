@@ -1,5 +1,6 @@
 import socket
 import select
+import time
 
 def forward_data(message, source_address, destination_socket, destination_address):
     """Forwards data from the source to the destination."""
@@ -39,6 +40,7 @@ def main():
                     inputs.append(server_socket)
                 
                 # Forward the data to the server
+                # time.sleep(2)
                 forward_data(data, address, *client_addresses[address])
 
         for s in exceptional:

@@ -191,7 +191,6 @@ def create_packet(destination_address, flags=[], data=b''):
     crafter_packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=flags, data=data)
     send_packet(crafter_packet, destination_address)
 
-
 def send_packet(packet, address):
     global last_sequence
     data = pickle.dumps(packet)

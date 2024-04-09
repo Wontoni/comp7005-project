@@ -26,11 +26,16 @@ PSH = "PSH"
 FIN = "FIN"
 
 packets_sent = [] # MAYBE SORT BY SEQUENCE NUMBER? --> Binary search for correct sequence
+packets_received = []
 last_sequence = -1
 expected_sequence = -1
 acknowledgement = -1
 
 processed_data=''
+
+retransmission_time = 1
+retransmission_limit = 10
+retransimssion_attempts = 0
 
 """
 DROPPED PACKETS
@@ -60,7 +65,7 @@ def check_args(args):
             raise Exception("Invalid number of arguments")
         elif not args[1].endswith('.txt'):
             raise Exception("Invalid file extension, please input a .txt file")
-        is_ipv4(args[2]) # Will handle invalid addresses
+        #is_ipv4(args[2]) # Will handle invalid addresses
     except Exception as e:
         handle_error(e)
         exit(1)
@@ -78,7 +83,7 @@ def create_socket():
     try: 
         global client
         # INET = IPv4 /// INET6 = IPv6
-        client = socket.socket((socket.AF_INET6, socket.AF_INET)[is_ipv4(server_host)], socket.SOCK_DGRAM)
+        client = socket.socket((socket.AF_INET6, socket.AF_INET)[True], socket.SOCK_DGRAM)
 
     except Exception as e:
         handle_error("Failed to create client socket")
@@ -138,8 +143,8 @@ def display_message(message):
     cleanup(True)
 
 def cleanup(success):
-    print("CLOSING CONNECTION")
     if client:
+        print("Closing Connection")
         client.close()
     if success:
         exit(0)
@@ -168,12 +173,10 @@ def transmit_data():
         handle_error(e)
 
 def four_handshake():
-    print("STARTING FOURWAY HANDSHAKE")
+    print("Fourway Handshake started")
     create_packet([FIN])
     accept_packet()
     create_packet([ACK])
-    for packet in packets_sent:
-        packet.display_info()
     cleanup(True)
 
 def create_packet(flags=[], data=b''):
@@ -195,10 +198,31 @@ def send_packet(packet):
     client.sendall(data)
 
 def accept_packet():
-    data, address = client.recvfrom(MAX_DATA) 
-    print("Received packet from", address)
-    packet = pickle.loads(data)
-    check_flags(packet)
+    try:
+        global retransmission_time
+        client.settimeout(retransmission_time)
+        data, address = client.recvfrom(MAX_DATA) 
+        print("Received packet from", address)
+        packet = pickle.loads(data)
+        packets_received.append(packet)
+        retransimssion_attempts = 0
+        check_flags(packet)
+    except socket.timeout as e:
+        handle_retransmission()
+    except Exception as e:
+        print(e)
+
+def handle_retransmission():
+        print("RETRANSMISSION NEEDED")
+        global retransimssion_attempts, retransmission_limit, last_sequence
+        if retransimssion_attempts >= retransmission_limit:
+            # ! Force close a connection
+            print("MAX RETRANSMISSIONS HIT")
+            cleanup(False)
+        last_packet_sent = packets_sent.pop()
+        last_sequence -= 1
+        retransimssion_attempts += 1
+        send_packet(last_packet_sent)
 
 def check_flags(packet):
     global last_sequence, acknowledgement
