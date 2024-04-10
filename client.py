@@ -33,7 +33,7 @@ acknowledgement = -1
 
 processed_data=''
 
-retransmission_time = 1
+retransmission_time = 10
 retransmission_limit = 10
 retransimssion_attempts = 0
 
@@ -91,7 +91,7 @@ def create_socket():
 def connect_client():
     try: 
         client.settimeout(10)
-        client.connect(('localhost', server_port))
+        client.connect((server_host, server_port))
         three_handshake()
         while True:
             accept_packet()
@@ -158,7 +158,7 @@ def three_handshake():
 
 def transmit_data():
     try:
-        data = pickle.dumps(processed_data)
+        data = processed_data.encode() #pickle.dumps(processed_data)
 
         # Split data into chunks
         chunk_size = MAX_DATA - MAX_HEADER

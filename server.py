@@ -4,6 +4,7 @@ import struct
 import pickle
 import random
 from packet import Packet
+import sys
 
 connection = None
 server = None
@@ -166,8 +167,10 @@ def check_flags(packet, address):
             print("RECEIVED AN ACK - CONNECTION HAS OFFICIALY BEEN ESTABLISHED")
         elif ACK in packet.flags and PSH in packet.flags: 
             print("RECEIVED ACK PSH - RECEIVED DATA")
-            data = pickle.loads(packet.data)
-            print(data)
+            # print(packet.data.decode())
+            # packet = pickle.loads(packet.data)
+            data = packet.data.decode()
+            # print(data)
 
             if data:
                 send_ack(address)
@@ -177,7 +180,7 @@ def check_flags(packet, address):
             # CHECK CONDITION FOR ENDING - MAYBE
             send_fin_ack(address)
             fourway = True
-        elif ACK in packet.flags: # End of fourway - find better way to impleement
+        elif ACK in packet.flags: # End of fourway - find better way to implement
             print("CLOSING CONNECTION")
             cleanup(True)
         else:
@@ -207,3 +210,9 @@ def accept_packet():
         handle_error(e)
 
 main()
+
+
+
+
+
+# ? Server handle retransmissions
