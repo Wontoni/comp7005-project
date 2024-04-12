@@ -1,7 +1,75 @@
+import argparse
+import sys
 import socket
 import select
 import time
 from packet_utils import drop_packet, delay_packet
+
+
+percent_client_drop = 0
+percent_client_delay = 0
+min_client_delay = 0
+max_client_delay = 0
+
+percent_server_drop = 0
+percent_server_delay = 0
+min_server_delay = 0
+max_server_delay = 0
+
+def check_args(args):
+    try:
+        global percent_client_delay, percent_client_drop, min_client_delay, max_client_delay, percent_server_delay, percent_server_drop, min_server_delay, max_server_delay
+        parser = argparse.ArgumentParser()
+        parser.add_argument("-cpdrop")
+        parser.add_argument("-cpdelay")
+        parser.add_argument("-cmax")
+        parser.add_argument("-cmin")
+        parser.add_argument("-spdrop")
+        parser.add_argument("-spdelay")
+        parser.add_argument("-smax")
+        parser.add_argument("-smin")
+        
+        args = parser.parse_args()
+        if args.cpdrop:
+            check_int(args.cpdrop)
+            percent_client_drop = int(args.cpdrop)
+
+        if args.cpdelay:
+            check_int(args.cpdelay)
+            percent_client_delay = int(args.cpdelay)
+
+        if args.cmax:
+            check_int(args.cmax)
+            max_client_delay = int(args.cmax)
+
+        if args.cmin:
+            check_int(args.cmin)
+            min_client_delay = int(args.cmin)
+        
+        if args.spdrop:
+            check_int(args.spdrop)
+            percent_server_drop = int(args.spdrop)
+
+        if args.spdelay:
+            check_int(args.spdelay)
+            percent_server_delay = int(args.spdelay)
+
+        if args.smax:
+            check_int(args.smax)
+            max_server_delay = int(args.smax)
+
+        if args.smin:
+            check_int(args.smin)
+            min_server_delay = int(args.smin)
+
+
+    except Exception as e:
+        # handle_error(e)
+        exit(1)
+
+def check_int(argument):
+    if not argument.isnumeric() or int(argument) > 100 or int(argument) < 0:
+        raise Exception(f"{argument} must be a number between 0-100")
 
 def forward_data(message, source_address, destination_socket, destination_address):
     """Forwards data from the source to the destination."""
@@ -13,6 +81,7 @@ def main():
     proxy_port = 8081
     server_address = ('::1', 8080)  # Change to the target server's IP and port
 
+    check_args(sys.argv)
     # Create a UDP socket for the proxy
     proxy_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     proxy_socket.bind((proxy_host, proxy_port))
