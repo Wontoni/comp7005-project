@@ -6,7 +6,6 @@ import random
 from packet import Packet
 import sys
 
-connection = None
 server = None
 server_host = "::"
 server_port = 8080
@@ -17,7 +16,6 @@ fourway = False
 recieved_packet_list = []
 sent_packet_list = []
 
-connections = {}
 UPPER_SEQUENCE = 9000
 LOWER_SEQUENCE = 1000
 MAX_DATA = 4096
@@ -125,6 +123,7 @@ def cleanup(success):
     if server:
         server.close()
     if success:
+        reset_server()
         main()
         # exit(0)
     exit(1)
@@ -260,6 +259,7 @@ def accept_packet():
         data, address = server.recvfrom(MAX_DATA) 
         print("Received packet from", address)
         packet = pickle.loads(data)
+        print(packet.flags)
         check_flags(packet, address)
         print(f"Recieved Ack: {packet.acknowledgement}")
         print(f"Recieved Seq: {packet.sequence}")
@@ -268,6 +268,15 @@ def accept_packet():
     except Exception as e:
         handle_error(e)
 
+def reset_server():
+    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list
+    server = None
+
+    last_sequence = -1
+    acknowledgement = -1
+    fourway = False
+    recieved_packet_list = []
+    sent_packet_list = []
 main()
 
 
