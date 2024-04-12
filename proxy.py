@@ -1,6 +1,7 @@
 import socket
 import select
 import time
+from packet_utils import drop_packet, delay_packet
 
 def forward_data(message, source_address, destination_socket, destination_address):
     """Forwards data from the source to the destination."""
@@ -33,6 +34,8 @@ def main():
                 data, address = s.recvfrom(4096)
                 print(f"[*] Received data from {address}")
 
+                delay_packet(0.8)
+
                 if address not in client_addresses:
                     # Create a new UDP socket for communicating with the server
                     server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
@@ -54,6 +57,7 @@ def main():
                 ready = select.select([server_socket], [], [], 0.1)[0]
                 if ready:
                     data, _ = server_socket.recvfrom(4096)
+                    # do the drop and delay here
                     if data:
                         proxy_socket.sendto(data, client_address)
                 else:

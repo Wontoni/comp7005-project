@@ -33,7 +33,7 @@ acknowledgement = -1
 
 processed_data=''
 
-retransmission_time = 10
+retransmission_time = 5
 retransmission_limit = 10
 retransimssion_attempts = 0
 
@@ -204,6 +204,7 @@ def accept_packet():
         data, address = client.recvfrom(MAX_DATA) 
         print("Received packet from", address)
         packet = pickle.loads(data)
+        print(packet.flags)
         packets_received.append(packet)
         retransimssion_attempts = 0
         check_flags(packet)
@@ -223,6 +224,7 @@ def handle_retransmission():
         last_sequence -= 1
         retransimssion_attempts += 1
         send_packet(last_packet_sent)
+        accept_packet()
 
 def check_flags(packet):
     global last_sequence, acknowledgement

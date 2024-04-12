@@ -14,6 +14,8 @@ server_port = 8080
 last_sequence = -1
 acknowledgement = -1
 fourway = False
+recieved_packet_list = []
+sent_packet_list = []
 
 connections = {}
 UPPER_SEQUENCE = 9000
@@ -199,6 +201,22 @@ def send_packet(packet, address):
     data = pickle.dumps(packet)
     last_sequence += 1
     server.sendto(data, address)
+    print(f"Sending Ack: {packet.acknowledgement}")
+    print(f"Sending Seq: {packet.sequence}")
+
+def validate_recieved_packet_list(packet):
+    if len(recieved_packet_list) == 0:
+        recieved_packet_list.append(packet)
+        return
+    
+    last_packet = recieved_packet_list[-1]
+    if last_packet.sequence != packet.sequence:
+        recieved_packet_list.append(packet)
+        return
+    if last_packet.sequence == packet.sequence:
+        print("Got a duplicate")
+        # send_packet()
+        return
 
 def accept_packet():
     try:
@@ -206,6 +224,10 @@ def accept_packet():
         print("Received packet from", address)
         packet = pickle.loads(data)
         check_flags(packet, address)
+        print(f"Recieved Ack: {packet.acknowledgement}")
+        print(f"Recieved Seq: {packet.sequence}")
+        validate_recieved_packet_list(packet)
+        print(f"Length of recieved packet list: {len(recieved_packet_list)}")
     except Exception as e:
         handle_error(e)
 
