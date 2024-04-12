@@ -34,17 +34,18 @@ def main():
                 data, address = s.recvfrom(4096)
                 print(f"[*] Received data from {address}")
 
-                delay_packet(0.8)
-
-                if address not in client_addresses:
-                    # Create a new UDP socket for communicating with the server
-                    server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
-                    client_addresses[address] = (server_socket, server_address)
-                    inputs.append(server_socket)
-                
-                # Forward the data to the server
-                # time.sleep(2)
-                forward_data(data, address, *client_addresses[address])
+                if(drop_packet(0.4) == False):
+                    if address not in client_addresses:
+                        # Create a new UDP socket for communicating with the server
+                        server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+                        client_addresses[address] = (server_socket, server_address)
+                        inputs.append(server_socket)
+                    
+                    # Forward the data to the server
+                    # time.sleep(2)
+                    forward_data(data, address, *client_addresses[address])
+                else:
+                    print("Dropped packet")
 
         for s in exceptional:
             print(f"[*] Exceptional condition on {s}")
