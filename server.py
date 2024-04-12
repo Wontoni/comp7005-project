@@ -165,7 +165,8 @@ def create_sequence():
 def check_flags(packet, address):
     global last_sequence, acknowledgement, fourway
     print(acknowledgement)
-    if SYN in packet.flags:
+    if SYN in packet.flags and is_packet_recieved(packet) == False:
+        recieved_packet_list.append(packet)
         create_sequence()
         acknowledgement = packet.sequence + 1
         send_syn_ack(address)
@@ -298,10 +299,6 @@ def reset_server():
     recieved_packet_list = []
     sent_packet_list = []
 main()
-
-
-
-# IF it is already existing, that means we need to resend the ack packet to the client.
 
 
 # ? Server handle retransmissions
