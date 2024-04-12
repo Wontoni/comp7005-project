@@ -152,9 +152,9 @@ def cleanup(success):
 
 def three_handshake():
     create_sequence()
-    create_packet([SYN])
+    send_syn()
     accept_packet()
-    create_packet([ACK])
+    send_ack()
 
 def transmit_data():
     try:
@@ -164,7 +164,7 @@ def transmit_data():
         chunk_size = MAX_DATA - MAX_HEADER
         chunks = [data[i:i+chunk_size] for i in range(0, len(data), chunk_size)]
         for chunk in chunks:
-            create_packet(flags=[ACK, PSH], data=chunk)
+            send_ack_psh(chunk)
             accept_packet()
 
         # DATA SHOULD BE DONE TRANSMITTING
@@ -174,9 +174,9 @@ def transmit_data():
 
 def four_handshake():
     print("Fourway Handshake started")
-    create_packet([FIN])
+    send_fin()
     accept_packet()
-    create_packet([ACK])
+    send_ack()
     cleanup(True)
 
 def create_packet(flags=[], data=b''):
@@ -232,7 +232,7 @@ def check_flags(packet):
         last_sequence = packet.acknowledgement
         acknowledgement = packet.sequence + 1
         print("RECEIVED A SYN ACK")
-        create_packet([ACK])
+        send_ack()
         transmit_data()
     elif ACK in packet.flags:
         if packet.sequence == acknowledgement:
@@ -248,6 +248,18 @@ def check_flags(packet):
             print("WRONG ORDER - FIX SEQUENCE")
     else:
         print("MISSING AN ACK")
+
+def send_syn():
+    create_packet(flags=[SYN])
+
+def send_ack_psh(data):
+    create_packet(flags=[ACK, PSH], data=data)
+
+def send_ack():
+    create_packet(flags=[ACK])
+
+def send_fin():
+    create_packet(flags=[FIN])
 
 
 if __name__ == "__main__":
