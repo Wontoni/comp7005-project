@@ -32,35 +32,35 @@ def check_args(args):
         args = parser.parse_args()
         if args.cpdrop:
             check_int(args.cpdrop)
-            percent_client_drop = int(args.cpdrop)
+            percent_client_drop = int(args.cpdrop)/100
 
         if args.cpdelay:
             check_int(args.cpdelay)
-            percent_client_delay = int(args.cpdelay)
+            percent_client_delay = int(args.cpdelay)/100
 
         if args.cmax:
             check_int(args.cmax)
-            max_client_delay = int(args.cmax)
+            max_client_delay = int(args.cmax)/100
 
         if args.cmin:
             check_int(args.cmin)
-            min_client_delay = int(args.cmin)
+            min_client_delay = int(args.cmin)/100
         
         if args.spdrop:
             check_int(args.spdrop)
-            percent_server_drop = int(args.spdrop)
+            percent_server_drop = int(args.spdrop)/100
 
         if args.spdelay:
             check_int(args.spdelay)
-            percent_server_delay = int(args.spdelay)
+            percent_server_delay = int(args.spdelay)/100
 
         if args.smax:
             check_int(args.smax)
-            max_server_delay = int(args.smax)
+            max_server_delay = int(args.smax)/100
 
         if args.smin:
             check_int(args.smin)
-            min_server_delay = int(args.smin)
+            min_server_delay = int(args.smin)/100
 
 
     except Exception as e:
@@ -103,7 +103,7 @@ def main():
                 data, address = s.recvfrom(4096)
                 print(f"[*] Received data from {address}")
 
-                if(drop_packet(0.4) == False):
+                if(drop_packet(percent_client_drop) == False):
                     if address not in client_addresses:
                         # Create a new UDP socket for communicating with the server
                         server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
