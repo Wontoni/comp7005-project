@@ -103,7 +103,7 @@ def main():
                 data, address = s.recvfrom(4096)
                 print(f"[*] Received data from {address}")
 
-                if(drop_packet(0.4) == False):
+                if(drop_packet(0) == False):
                     if address not in client_addresses:
                         # Create a new UDP socket for communicating with the server
                         server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
@@ -129,7 +129,10 @@ def main():
                     data, _ = server_socket.recvfrom(4096)
                     # do the drop and delay here
                     if data:
-                        proxy_socket.sendto(data, client_address)
+                        if drop_packet(0.5) == False:
+                            proxy_socket.sendto(data, client_address)
+                        else:
+                            print("Packet dropped from server")
                 else:
                     break
 

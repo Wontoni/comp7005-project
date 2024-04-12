@@ -26,6 +26,10 @@ ACK = "ACK"
 PSH = "PSH"
 FIN = "FIN"
 
+retransmission_time = 5
+retransmission_limit = 10
+retransmission_attempts = 0
+
 def main():
     try:
         create_socket()
@@ -198,17 +202,23 @@ def check_flags(packet, address):
         else:
             print("Resend the last packet back to client")
 
-    else:
-        print("WRONG SEQUENCE FOUND - HANDLE WRONG ORDER")
+    else:       # if is_packet_recieved == True, send the last packet because if we recieve same packet it means client didnt get the last ack from server
+        # print("WRONG SEQUENCE FOUND - HANDLE WRONG ORDER")
+        handle_retransmission(address)
 
 def create_packet(destination_address, flags=[], data=b''):
     crafter_packet = Packet(sequence=last_sequence, acknowledgement=acknowledgement, flags=flags, data=data)
     send_packet(crafter_packet, destination_address)
 
-def send_packet(packet, address):
+def send_packet(packet, address, is_retransmission=False):
     global last_sequence
     data = pickle.dumps(packet)
     last_sequence += 1
+
+    if is_retransmission:
+        server.sendto(data, address)
+        print("retransmitting package")
+        return
 
     if is_packet_sent(packet) == False:                     # if the packet has not been sent
         server.sendto(data, address)
@@ -216,8 +226,9 @@ def send_packet(packet, address):
         print(f"Length of sent packet list: {len(sent_packet_list)}")
         print(f"Sending Ack: {packet.acknowledgement}")
         print(f"Sending Seq: {packet.sequence}")
-    else:                                                   # if the packet has been sent
-        last_packet = get_last_sent_packet()
+    else:                                                   # if the packet has been sent dont append to list but send the last
+        return
+        print("out of order stuff")
         
 
 def get_last_sent_packet():
@@ -237,6 +248,15 @@ def is_packet_recieved(packet):
     if last_packet.sequence == packet.sequence:
         print("Server Recieved Duplicate Packets")
         return True
+    
+"""
+after recieving a retransmisstion from client, server handles it
+by sending the last packet.
+"""
+def handle_retransmission(address):
+    last_packet = get_last_sent_packet()
+    print('Retransmitting packet')
+    send_packet(last_packet, address, True)
 
 """
 Checks to see if the server has already sent the packet
