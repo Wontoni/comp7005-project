@@ -4,6 +4,7 @@ import socket
 import select
 import time
 from packet_utils import drop_packet, delay_packet
+import asyncio
 
 
 percent_client_drop = 0
@@ -75,7 +76,7 @@ def forward_data(message, source_address, destination_socket, destination_addres
     """Forwards data from the source to the destination."""
     destination_socket.sendto(message, destination_address)
 
-def main():
+async def main():
     # Proxy server configuration
     proxy_host = "::"
     proxy_port = 8081
@@ -104,6 +105,7 @@ def main():
                 print(f"[*] Received data from {address}")
 
                 if(drop_packet(percent_client_drop) == False):
+                    await delay_packet(0.4)
                     if address not in client_addresses:
                         # Create a new UDP socket for communicating with the server
                         server_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
@@ -129,7 +131,7 @@ def main():
                     data, _ = server_socket.recvfrom(4096)
                     # do the drop and delay here
                     if data:
-                        if drop_packet(0.5) == False:
+                        if drop_packet(0) == False:
                             proxy_socket.sendto(data, client_address)
                         else:
                             print("Packet dropped from server")
@@ -137,4 +139,4 @@ def main():
                     break
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
