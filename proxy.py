@@ -5,7 +5,6 @@ import select
 import time
 from packet_utils import drop_packet, delay_packet
 
-
 percent_client_drop = 0
 percent_client_delay = 0
 min_client_delay = 0
@@ -16,56 +15,30 @@ percent_server_delay = 0
 min_server_delay = 0
 max_server_delay = 0
 
-def check_args(args):
-    try:
-        global percent_client_delay, percent_client_drop, min_client_delay, max_client_delay, percent_server_delay, percent_server_drop, min_server_delay, max_server_delay
-        parser = argparse.ArgumentParser()
-        parser.add_argument("-cpdrop")
-        parser.add_argument("-cpdelay")
-        parser.add_argument("-cmax")
-        parser.add_argument("-cmin")
-        parser.add_argument("-spdrop")
-        parser.add_argument("-spdelay")
-        parser.add_argument("-smax")
-        parser.add_argument("-smin")
-        
-        args = parser.parse_args()
-        if args.cpdrop:
-            check_int(args.cpdrop)
-            percent_client_drop = int(args.cpdrop)/100
+def check_args():
+    parser = argparse.ArgumentParser(description="UDP Proxy for simulating network conditions.")
+    parser.add_argument("-cpdrop", type=int, help="Percentage of packets to drop from client to server", default=0)
+    parser.add_argument("-cpdelay", type=int, help="Percentage of packets to delay from client to server", default=0)
+    parser.add_argument("-cmax", type=int, help="Maximum delay in milliseconds for client packets", default=0)
+    parser.add_argument("-cmin", type=int, help="Minimum delay in milliseconds for client packets", default=0)
+    parser.add_argument("-spdrop", type=int, help="Percentage of packets to drop from server to client", default=0)
+    parser.add_argument("-spdelay", type=int, help="Percentage of packets to delay from server to client", default=0)
+    parser.add_argument("-smax", type=int, help="Maximum delay in milliseconds for server packets", default=0)
+    parser.add_argument("-smin", type=int, help="Minimum delay in milliseconds for server packets", default=0)
+    
+    args = parser.parse_args()
 
-        if args.cpdelay:
-            check_int(args.cpdelay)
-            percent_client_delay = int(args.cpdelay)/100
-
-        if args.cmax:
-            check_int(args.cmax)
-            max_client_delay = int(args.cmax)/100
-
-        if args.cmin:
-            check_int(args.cmin)
-            min_client_delay = int(args.cmin)/100
-        
-        if args.spdrop:
-            check_int(args.spdrop)
-            percent_server_drop = int(args.spdrop)/100
-
-        if args.spdelay:
-            check_int(args.spdelay)
-            percent_server_delay = int(args.spdelay)/100
-
-        if args.smax:
-            check_int(args.smax)
-            max_server_delay = int(args.smax)/100
-
-        if args.smin:
-            check_int(args.smin)
-            min_server_delay = int(args.smin)/100
-
-
-    except Exception as e:
-        # handle_error(e)
-        exit(1)
+    global percent_client_drop, percent_client_delay, min_client_delay, max_client_delay
+    global percent_server_drop, percent_server_delay, min_server_delay, max_server_delay
+    
+    percent_client_drop = args.cpdrop / 100.0
+    percent_client_delay = args.cpdelay / 100.0
+    max_client_delay = args.cmax
+    min_client_delay = args.cmin
+    percent_server_drop = args.spdrop / 100.0
+    percent_server_delay = args.spdelay / 100.0
+    max_server_delay = args.smax
+    min_server_delay = args.smin
 
 def check_int(argument):
     if not argument.isnumeric() or int(argument) > 100 or int(argument) < 0:
@@ -78,10 +51,10 @@ def forward_data(message, source_address, destination_socket, destination_addres
 def main():
     # Proxy server configuration
     proxy_host = "::"
-    proxy_port = 8081
+    proxy_port = 5173
     server_address = ('::1', 8080)  # Change to the target server's IP and port
 
-    check_args(sys.argv)
+    check_args()
     # Create a UDP socket for the proxy
     proxy_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
     proxy_socket.bind((proxy_host, proxy_port))
@@ -129,12 +102,15 @@ def main():
                     data, _ = server_socket.recvfrom(4096)
                     # do the drop and delay here
                     if data:
-                        if drop_packet(0.5) == False:
+                        if drop_packet(percent_server_drop) == False:
                             proxy_socket.sendto(data, client_address)
                         else:
                             print("Packet dropped from server")
                 else:
                     break
+def handle_error(err_message):
+    print(f"Error: {err_message}")
+    exit(1)
 
 if __name__ == '__main__':
     main()
