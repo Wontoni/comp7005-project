@@ -21,6 +21,7 @@ threeway = False
 recieved_packet_list = []
 sent_packet_list = []
 connection_established = False
+received_acks_seq = []
 
 UPPER_SEQUENCE = 9000
 LOWER_SEQUENCE = 1000
@@ -155,8 +156,10 @@ def create_sequence():
         handle_error("Failed to initialize sequence.")
 
 def check_flags(packet, address):
-    global last_sequence, acknowledgement, fourway, connection_established, threeway, acknowledgement, recieved_packet_list, received_data
+    global last_sequence, acknowledgement, fourway, connection_established, threeway, acknowledgement, recieved_packet_list, received_data, received_acks_seq
     print(f"Received {packet.flags}")
+    if connection_established and packet.flags == [ACK] and packet.sequence in received_acks_seq:
+        return
     #print(acknowledgement)
     if SYN in packet.flags and len(packet.flags) == 1 and is_packet_recieved(packet) == False and not connection_established:
         recieved_packet_list.append(packet)
@@ -174,11 +177,14 @@ def check_flags(packet, address):
             acknowledgement = packet.sequence + 1
             if threeway:
                 if ACK in packet.flags and PSH not in packet.flags and FIN not in packet.flags:
+                    print("Connection has successfully been established")
                     connection_established = True
+                    received_acks_seq.append(packet.sequence)
                     threeway = False
                     return
                     
             elif ACK in packet.flags and PSH in packet.flags: 
+                print("==========-=-=--=--=-=--=-")
                 # print(packet.data.decode())
                 # packet = pickle.loads(packet.data)
                 data = packet.data.decode()
@@ -189,10 +195,12 @@ def check_flags(packet, address):
                     send_ack(address)
                 else:
                     print("ERROR SEND RETRANSMISSION")
+                    #handle_retransmission(address)
             elif ACK in packet.flags and FIN in packet.flags:
                 # CHECK CONDITION FOR ENDING - MAYBE
                 four_handshake(address)
             elif ACK in packet.flags and len(packet.flags) == 1 and fourway:
+                received_acks_seq.append(packet.sequence)
                 return True
                 #cleanup(True)
             else:
@@ -300,10 +308,9 @@ def accept_packet():
         data, address = server.recvfrom(MAX_DATA) 
         print("Received packet from", address)
         packet = pickle.loads(data)
-        print(packet.flags)
+        print(f"Expected Seq: {acknowledgement}")
+        print(f"Recieved Seq: {packet.sequence}")
         success = check_flags(packet, address)
-        #print(f"Recieved Ack: {packet.acknowledgement}")
-        #print(f"Recieved Seq: {packet.sequence}")
         is_packet_recieved(packet)
         #print(f"Length of recieved packet list: {len(recieved_packet_list)}")
         return success
@@ -319,15 +326,17 @@ def accept_packet():
         handle_error(e)
 
 def reset_server():
-    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list, connection_established
+    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list, connection_established, received_acks_seq, received_data
     server = None
     connection_established = False
     
     last_sequence = -1
     acknowledgement = -1
     fourway = False
-    recieved_packet_list = []
-    sent_packet_list = []
+    received_data = ""
+    recieved_packet_list.clear()
+    sent_packet_list.clear()
+    received_acks_seq.clear()
 
 def four_handshake(address):
     # Should've received a fin ack to initiate this
@@ -359,8 +368,6 @@ def handle_error(err_message):
     
 def cleanup(success):
     global received_data
-    recieved_packet_list.clear()                # cleanup list of recieved packets
-    sent_packet_list.clear()                    # cleanup list of sent packets 
     display_data()
     print("Closing Connection")
 
