@@ -29,6 +29,7 @@ FIN = "FIN"
 
 packets_sent = [] # MAYBE SORT BY SEQUENCE NUMBER? --> Binary search for correct sequence
 packets_received = []
+received_acks_seq = []
 last_sequence = -1
 expected_sequence = -1
 acknowledgement = -1
@@ -162,10 +163,10 @@ def three_handshake():
 
 def three_handshake_part_two():
     global is_threeway, connection_established
-    while True:
-        success = waiting_state()
-        if success:
-            break
+    # while True:
+    #     success = waiting_state()
+    #     if success:
+    #         break
     is_threeway = False
     connection_established = True
     transmit_data()
@@ -174,9 +175,15 @@ def four_handshake():
     global is_fourway, last_sequence, acknowledgement
     print("Fourway Handshake started")
     send_fin_ack()
-    accept_packet()
-    send_ack()
     is_fourway = True
+    while True:
+        success = waiting_state()
+        if success:
+            break
+    
+    #accept_packet()
+    send_ack()
+
     while True:
         success = waiting_state()
         if success:
@@ -226,7 +233,8 @@ def send_packet(packet):
     packets_sent.append(packet)
     last_sequence += 1
     data = pickle.dumps(packet)
-    print(f"Sending {packet.flags}")
+    print(f"Sending      {packet.flags}")
+    print(f"Sending seq: {packet.sequence}")
     client.sendall(data)
 
 def accept_packet():
@@ -239,6 +247,9 @@ def accept_packet():
         data, address = client.recvfrom(MAX_DATA) 
         print("Received packet from", address)
         packet = pickle.loads(data)
+        if is_fourway and packet.flags == [FIN, ACK]:
+           return True 
+
         print(packet.flags)
         packets_received.append(packet)
         retransimssion_attempts = 0
@@ -264,7 +275,7 @@ def handle_retransmission():
         accept_packet()
 
 def check_flags(packet):
-    global last_sequence, acknowledgement, is_threeway, connection_established
+    global last_sequence, acknowledgement, is_threeway, connection_established, received_acks_seq
     # if SYN in packet.flags and ACK in packet.flags:
     #     last_sequence = packet.acknowledgement
     #     acknowledgement = packet.sequence + 1
@@ -272,10 +283,13 @@ def check_flags(packet):
     #     return
     #     # send_ack()
     #     # transmit_data()
+    if connection_established and packet.sequence in received_acks_seq:
+        return
     if packet.sequence == acknowledgement and not is_threeway:
         print(f"Received {packet.flags}")
         acknowledgement = packet.sequence + 1
         if PSH not in packet.flags and FIN not in packet.flags:
+            received_acks_seq.append(packet.sequence)
             return
         elif PSH in packet.flags:
             return
