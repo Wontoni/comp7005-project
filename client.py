@@ -1,10 +1,12 @@
 import socket
 import sys
 import ipaddress
-import struct
 import pickle
 import random
 from packet import Packet
+from visualization import Graph
+
+sent_graph = Graph()
 
 retransmission_time = 2
 waiting_state_time = 5
@@ -145,10 +147,12 @@ def display_message(message):
     cleanup(True)
 
 def cleanup(success):
+    global sent_graph
     if client:
         print("Closing Connection")
         client.close()
     if success:
+        sent_graph.run()
         exit(0)
     exit(1)
 
@@ -229,7 +233,9 @@ def send_sequence_packet():
     print("SEND SEQUENCE PACKET")
 
 def send_packet(packet):
-    global last_sequence, packets_sent
+    global last_sequence, packets_sent, sent_graph
+    sent_graph.add_packet()
+
     packets_sent.append(packet)
     last_sequence += 1
     data = pickle.dumps(packet)
