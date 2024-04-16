@@ -6,10 +6,11 @@ import random
 from packet import Packet
 from visualization import Graph
 
-sent_graph = Graph()
+sent_graph = Graph("Packets sent from Client")
+retrans_graph = Graph("Retransmissions sent from Client")
+received_graph = Graph("Packets the Client received")
 
-retransmission_time = 2
-waiting_state_time = 5
+retransmission_time = 1
 retransmission_limit = 999
 
 # Change to ipv4 for connection via IPv4 Address or ipv6 for IPv6
@@ -39,6 +40,8 @@ acknowledgement = -1
 processed_data=''
 
 retransimssion_attempts = 0
+waiting_state_time = 2
+
 is_threeway = False
 is_fourway = False
 connection_established = False
@@ -147,14 +150,26 @@ def display_message(message):
     cleanup(True)
 
 def cleanup(success):
-    global sent_graph
     if client:
         print("Closing Connection")
         client.close()
+    
+    display_graphs()
+
     if success:
-        sent_graph.run()
         exit(0)
     exit(1)
+
+def display_graphs():
+    global sent_graph, retrans_graph, received_graph
+    print("Displaying packets sent graph")
+    sent_graph.run()
+
+    print("Displaying retransmission graph")
+    retrans_graph.run()
+
+    print("Displaying received packets graph")
+    received_graph.run()
 
 def three_handshake():
     global is_threeway, connection_established
@@ -245,7 +260,8 @@ def send_packet(packet):
 
 def accept_packet():
     try:
-        global retransmission_time, retransimssion_attempts, waiting_state_time
+        global retransmission_time, retransimssion_attempts, waiting_state_time, received_graph
+        received_graph.add_packet()
         if is_fourway or is_threeway:
             client.settimeout(waiting_state_time)
         else:
@@ -268,11 +284,12 @@ def accept_packet():
         print(e)
 
 def handle_retransmission():
-        global retransimssion_attempts, retransmission_limit, last_sequence
+        global retransimssion_attempts, retransmission_limit, last_sequence, retrans_graph
         if retransimssion_attempts >= retransmission_limit:
             # ! Force close a connection
             print("MAX RETRANSMISSIONS HIT")
             cleanup(False)
+        retrans_graph.add_packet()
         last_packet_sent = packets_sent.pop()
         last_sequence -= 1
         retransimssion_attempts += 1
