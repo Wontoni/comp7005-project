@@ -163,10 +163,10 @@ def three_handshake():
 
 def three_handshake_part_two():
     global is_threeway, connection_established
-    while True:
-        success = waiting_state()
-        if success:
-            break
+    # while True:
+    #     success = waiting_state()
+    #     if success:
+    #         break
     is_threeway = False
     connection_established = True
     transmit_data()

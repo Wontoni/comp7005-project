@@ -5,7 +5,7 @@ import pickle
 import random
 from packet import Packet
 import sys
-
+import os
 
 retransmission_time = 1
 wait_state_time = 1
@@ -168,7 +168,8 @@ def check_flags(packet, address):
         send_syn_ack(address)
         threeway = True
     elif SYN not in packet.flags and not connection_established and not threeway:
-        print("Packet received without a connection, restarting...")
+        print("Packet received without a connection...")
+        return
         cleanup(True)
 
     elif is_packet_recieved(packet) == False:                   # checks to see if already in list
@@ -305,6 +306,8 @@ def accept_packet():
     try:
         if fourway:
             server.settimeout(retransmission_time)
+        else:
+            server.settimeout(10)
         data, address = server.recvfrom(MAX_DATA) 
         print("Received packet from", address)
         packet = pickle.loads(data)
@@ -321,7 +324,7 @@ def accept_packet():
             #last_sequence -= 1
             #handle_retransmission(last_address)
         else:
-            handle_error(e)
+            cleanup(True)
     except Exception as e:
         handle_error(e)
 
@@ -368,6 +371,7 @@ def handle_error(err_message):
     
 def cleanup(success):
     global received_data
+    os.system('clear')
     display_data()
     print("Closing Connection")
 
