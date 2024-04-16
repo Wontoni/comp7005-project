@@ -308,10 +308,6 @@ def accept_packet():
             #get the ack number
             #check to see if the ack is one above the last appended sequence number sent from server
             #if it is cut connection
-            val = acknowledgement - recieved_packet_list[-1].sequence
-            print(val)
-            if val == -1:
-                print("CUT CONNECTION")
         else:
             server.settimeout(10)
         data, address = server.recvfrom(MAX_DATA) 

@@ -17,7 +17,7 @@ class Graph:
         # ani = FuncAnimation(fig, self.update, interval=1000)  # Update graph every second
         # plt.show()
 
-    def update(self, frame):
+    def update(self):
         seconds = self.packets  # Extract time in seconds since start
         packet_count = list(range(len(self.packets)))  # Number of packets sent over time
         plt.cla()  # Clear the current axes

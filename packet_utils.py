@@ -6,10 +6,10 @@ def drop_packet(drop_probability):
     return random.random() < drop_probability
 
 
-async def delay_packet(delay_probability, max_delay=5):
+async def delay_packet(delay_probability, max_delay, min_delay, origin):
     if random.random() < delay_probability:
-        print('Packet Delay Start')
-        # time.sleep(random.uniform(0, max_delay))
-        await asyncio.sleep(max_delay)
-        print('Packet Delay Finish')
+        delay_duration = random.uniform(min_delay, max_delay)
+        print(f'[{origin}] Packet Delay Start')
+        await asyncio.sleep(delay_duration)
+        print(f'[{origin}] Packet Delay Finish')
 
