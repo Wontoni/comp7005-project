@@ -153,10 +153,10 @@ def cleanup(success):
     if client:
         print("Closing Connection")
         client.close()
-    
-    display_graphs()
+
 
     if success:
+        display_graphs()
         exit(0)
     exit(1)
 
