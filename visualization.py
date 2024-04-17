@@ -40,7 +40,10 @@ class Graph:
 
     def run(self):
         self.update()
-        plt.show()
+        if len(self.packets) > 1:
+            plt.show()
+            return False
+        return True
 
     def reset(self):
         self.start_time = datetime.datetime.now()

@@ -19,7 +19,7 @@ percent_server_delay = 0
 min_server_delay = 0
 max_server_delay = 0
 
-default_min = 1
+default_min = 0
 default_max = 2
 
 def check_args():
@@ -30,11 +30,10 @@ def check_args():
     parser.add_argument("-cmin", type=int, help="Minimum delay in milliseconds for client packets", default=default_min)
     parser.add_argument("-spdrop", type=int, help="Percentage of packets to drop from server to client", default=0)
     parser.add_argument("-spdelay", type=int, help="Percentage of packets to delay from server to client", default=0)
-    parser.add_argument("-smax", type=int, help="Maximum delay in milliseconds for server packets", default=default_max)
+    parser.add_argument("-smax", type=int, help="Maximum delay in milliseconds for server packets", default=0)
     parser.add_argument("-smin", type=int, help="Minimum delay in milliseconds for server packets", default=default_min)
     
     args = parser.parse_args()
-
     global percent_client_drop, percent_client_delay, min_client_delay, max_client_delay
     global percent_server_drop, percent_server_delay, min_server_delay, max_server_delay
     
@@ -63,6 +62,11 @@ def check_args():
         handle_error("Client delay minimum must be bigger than the client delay maximum")
     elif min_server_delay > max_server_delay:
         handle_error("Server delay minimum must be bigger than the server delay minimum")
+    elif percent_client_delay == 0 and min_client_delay != 0 or max_client_delay != 0:
+        handle_error("Client delay percentage not set with min or max delays")
+    elif percent_server_delay == 0 and min_server_delay != 0 or max_server_delay != 0:
+        handle_error("Server delay percentage not set with min or max delays") 
+
 
 def check_int(argument):
     if not argument.isnumeric() or int(argument) > 100 or int(argument) < 0:

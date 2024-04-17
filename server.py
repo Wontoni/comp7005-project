@@ -64,14 +64,6 @@ def bind_socket():
     except Exception as e:
         handle_error("Failed to bind to the server")
 
-def send_message(words, address): 
-    try: 
-        encoded = pickle.dumps(words)
-        server.sendto(struct.pack(">I", len(encoded)), address)
-        server.sendto(encoded,address)
-    except Exception as e:
-        handle_error("Failed to send words")
-
 def handle_data(data):
     words = get_words(data)
     word_count = get_word_count(words)
@@ -149,7 +141,6 @@ def create_sequence():
 
 def check_flags(packet, address):
     global last_sequence, acknowledgement, fourway, connection_established, threeway, acknowledgement, recieved_packet_list, received_data, received_acks_seq
-    print(f"Received {packet.flags}")
     if connection_established and packet.flags == [ACK] and packet.sequence in received_acks_seq:
         return
     if SYN in packet.flags and len(packet.flags) == 1 and is_packet_recieved(packet) == False and not connection_established:
@@ -206,9 +197,9 @@ def send_packet(packet, address, is_retransmission=False):
     global last_sequence, server, retransmission_time, acknowledgement, sent_graph
     try:
         print(f"Sending {packet.flags}")
+        sent_graph.add_packet()
         data = pickle.dumps(packet)
         last_sequence += 1
-        sent_graph.add_packet()
         if is_retransmission:
             server.sendto(data, address)
             return
@@ -248,6 +239,7 @@ by sending the last packet.
 """
 def handle_retransmission(address):
     global last_sequence, retrans_graph
+    print("Retransmitting...")
     retrans_graph.add_packet()
     last_packet = get_last_sent_packet()
     last_sequence -= 1
@@ -270,14 +262,13 @@ def is_packet_sent(packet):
 def accept_packet():
     global wait_state_time, fourway, retransmission_time, last_sequence, acknowledgement, received_graph
     try:
-        received_graph.add_packet()
         if fourway:
             server.settimeout(retransmission_time)
-        else:
-            server.settimeout(20)
+
         data, address = server.recvfrom(MAX_DATA) 
-        print("Received packet from", address)
         packet = pickle.loads(data)
+        print(f"Received packet with flags {packet.flags}")
+        received_graph.add_packet()
         success = check_flags(packet, address)
         is_packet_recieved(packet)
         return success
@@ -290,7 +281,7 @@ def accept_packet():
         handle_error(e)
 
 def reset_server():
-    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list, connection_established, received_acks_seq, received_data, retrans_graph, sent_graph
+    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list, connection_established, received_acks_seq, received_data, retrans_graph, sent_graph, received_graph
     server = None
     connection_established = False
     
@@ -303,6 +294,7 @@ def reset_server():
     received_acks_seq.clear()
     retrans_graph.reset()
     sent_graph.reset()
+    received_graph.reset()
 
 def four_handshake(address):
     global fourway, last_sequence
@@ -333,13 +325,19 @@ def handle_error(err_message):
 def display_graphs():
     global sent_graph, retrans_graph, received_graph
     print("Displaying packets sent graph")
-    sent_graph.run()
-
-    print("Displaying retransmission graph")
-    retrans_graph.run()
-    
-    print("Displaying packets received graph")
-    received_graph.run()
+    failure = sent_graph.run()
+    if failure:
+        print("Failed: No packets were sent")
+    else:
+        print("Displaying retransmission graph")
+        failure = retrans_graph.run()
+        if failure:
+            print("Failed: No transmissions were sent")
+        
+        print("Displaying received packets graph")
+        failure = received_graph.run()
+        if failure:
+            print("Failed: No packets were received")
 
 def cleanup(success):
     global received_data

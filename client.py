@@ -11,7 +11,7 @@ retrans_graph = Graph("Retransmissions sent from Client")
 received_graph = Graph("Packets the Client received")
 
 retransmission_time = 1
-retransmission_limit = 999
+retransmission_limit = 10
 
 # Change to ipv4 for connection via IPv4 Address or ipv6 for IPv6
 server_port = 5173
@@ -45,6 +45,7 @@ waiting_state_time = 2
 is_threeway = False
 is_fourway = False
 connection_established = False
+expect_fin_ack = False
 
 """
 DROPPED PACKETS
@@ -152,22 +153,27 @@ def cleanup(success):
         print("Closing Connection")
         client.close()
 
-
+    display_graphs()
     if success:
-        display_graphs()
         exit(0)
     exit(1)
 
 def display_graphs():
     global sent_graph, retrans_graph, received_graph
     print("Displaying packets sent graph")
-    sent_graph.run()
-
-    print("Displaying retransmission graph")
-    retrans_graph.run()
-
-    print("Displaying received packets graph")
-    received_graph.run()
+    failure = sent_graph.run()
+    if failure:
+        print("Failed: No packets were sent")
+    else:
+        print("Displaying retransmission graph")
+        failure = retrans_graph.run()
+        if failure:
+            print("Failed: No transmissions were sent")
+        
+        print("Displaying received packets graph")
+        failure = received_graph.run()
+        if failure:
+            print("Failed: No packets were received")
 
 def three_handshake():
     global is_threeway, connection_established
@@ -185,15 +191,17 @@ def three_handshake_part_two():
     transmit_data()
 
 def four_handshake():
-    global is_fourway, last_sequence, acknowledgement
+    global is_fourway, last_sequence, acknowledgement, expect_fin_ack
     print("Fourway Handshake started")
-    send_fin_ack()
-    is_fourway = True
+    expect_fin_ack = True
     while True:
+        send_fin_ack()
         success = waiting_state()
         if success:
+            expect_fin_ack = False
             break
 
+    is_fourway = True
     send_ack()
 
     while True:
@@ -204,7 +212,7 @@ def four_handshake():
     cleanup(True)
 
 def waiting_state():
-    print("WAITING STATE")
+    print("Waiting...")
     success = accept_packet()
     if success:
         return True
@@ -235,35 +243,30 @@ def create_sequence():
     global last_sequence
     last_sequence = random.randint(LOWER_SEQUENCE, UPPER_SEQUENCE)
 
-def send_sequence_packet():
-    print("SEND SEQUENCE PACKET")
-
 def send_packet(packet):
     global last_sequence, packets_sent, sent_graph
+    print("Sending packet", packet.flags)
     sent_graph.add_packet()
 
     packets_sent.append(packet)
     last_sequence += 1
     data = pickle.dumps(packet)
-    print(f"Sending      {packet.flags}")
-    print(f"Sending seq: {packet.sequence}")
     client.sendall(data)
 
 def accept_packet():
     try:
-        global retransmission_time, retransimssion_attempts, waiting_state_time, received_graph
-        received_graph.add_packet()
-        if is_fourway or is_threeway:
+        global retransmission_time, retransimssion_attempts, waiting_state_time, received_graph, expect_fin_ack
+        if is_fourway or is_threeway and not expect_fin_ack:
             client.settimeout(waiting_state_time)
         else:
             client.settimeout(retransmission_time)
         data, address = client.recvfrom(MAX_DATA) 
-        print("Received packet from", address)
         packet = pickle.loads(data)
-        if is_fourway and packet.flags == [FIN, ACK]:
+        print("Received packet with flags", packet.flags)
+        received_graph.add_packet()
+        if expect_fin_ack and packet.flags == [FIN, ACK]:
            return True 
-
-        print(packet.flags)
+        
         packets_received.append(packet)
         retransimssion_attempts = 0
         check_flags(packet)
@@ -279,6 +282,7 @@ def handle_retransmission():
         if retransimssion_attempts >= retransmission_limit:
             print("Max retranmissions hit, force ending connection...")
             cleanup(False)
+        print("Retransmitting...")
         retrans_graph.add_packet()
         last_packet_sent = packets_sent.pop()
         last_sequence -= 1
@@ -291,7 +295,6 @@ def check_flags(packet):
     if connection_established and packet.sequence in received_acks_seq:
         return
     if packet.sequence == acknowledgement and not is_threeway:
-        print(f"Received {packet.flags}")
         acknowledgement = packet.sequence + 1
         if PSH not in packet.flags and FIN not in packet.flags:
             received_acks_seq.append(packet.sequence)
@@ -308,6 +311,7 @@ def check_flags(packet):
         return
     else:
         if packet.flags == [SYN, ACK]:
+            print("****************************************")
             packets_sent.pop()
             last_sequence -= 1
             is_threeway = True
