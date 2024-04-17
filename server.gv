@@ -1,0 +1,30 @@
+digraph Server {
+    node [shape=circle; fontsize=10; width=1;height=1;];
+    edge [fontsize=10];
+
+    START [label="START", shape=doublecircle]
+    HANDLE_ERROR [label="HANDLE_ERROR", shape=circle]
+    SOCKET_CREATED [label="SOCKET_CREATED", shape=circle]
+    SOCKET_BINDED [label="SOCKET_BINDED", shape=circle]
+    CONNECTION_RECEIVED [label="CONNECTION_RECEIVED", shape=circle]
+    LISTEN_FOR_CONNECTION[label="LISTEN_FOR_CONNECTION", shape=circle]
+    THREEWAY_HANDSHAKE[label="THREEWAY_HANDSHAKE", shape=circle]
+    FOURWAY_HANDSHAKE[label="FOURWAY_HANDSHAKE", shape=circle]
+    CLEANUP [label="CLEANUP", shape=circle]
+    EXIT [label="EXIT", shape=doublecircle]
+
+    START -> SOCKET_CREATED [label="parse_args"]
+    SOCKET_CREATED -> SOCKET_BINDED [label="bind_socket"]
+    SOCKET_CREATED -> HANDLE_ERROR [label="handle_error"]
+    SOCKET_BINDED -> CONNECTION_RECEIVED [label="receive_connection"]
+    SOCKET_BINDED -> HANDLE_ERROR [label="handle_error"]
+    CONNECTION_RECEIVED -> LISTEN_FOR_CONNECTION [label="handle_connection"]
+    LISTEN_FOR_CONNECTION -> CONNECTION_RECEIVED [label="receive_connection"]
+    LISTEN_FOR_CONNECTION -> THREEWAY_HANDSHAKE[label="handle_connection"]
+    THREEWAY_HANDSHAKE -> HANDLE_ERROR[label="handle_error"]
+    THREEWAY_HANDSHAKE -> FOURWAY_HANDSHAKE[label="terminate_connection"]
+    FOURWAY_HANDSHAKE -> HANDLE_ERROR[label="handle_error"]
+    FOURWAY_HANDSHAKE -> LISTEN_FOR_CONNECTION[label="cleanup"]
+    HANDLE_ERROR -> CLEANUP [label="cleanup"]
+    CLEANUP -> EXIT
+}
