@@ -1,0 +1,29 @@
+digraph Proxy {
+    node [shape=circle; fontsize=10; width=1;height=1;];
+    edge [fontsize=10];
+
+    START [label="START", shape=doublecircle]
+    CHECK_ARGS [label="CHECK_ARGS", shape=circle]
+    HANDLE_ERROR [label="HANDLE_ERROR", shape=circle]
+    SOCKET_CREATED [label="SOCKET_CREATED", shape=circle]
+    CONNECTION_RECEIVED [label="CONNECTION_RECEIVED", shape=circle]
+    WAITING [label="WAITING", shape=circle]
+    FORWARDING [label="FORWARDING", shape=circle]
+    DROPPING [label="DROPPING", shape=circle]
+    DELAYING [label="DELAYING", shape=circle]
+
+    START -> CHECK_ARGS [label="check_args"]
+    CHECK_ARGS -> SOCKET_CREATED [label="main"]
+    CHECK_ARGS -> HANDLE_ERROR [label="handle_error"]
+    SOCKET_CREATED -> CONNECTION_RECEIVED [label="connect_socket"]
+    SOCKET_CREATED -> HANDLE_ERROR [label="handle_error"]
+    CONNECTION_RECEIVED -> WAITING [label="main"]
+    WAITING -> FORWARDING [label="forward_data"]
+    WAITING -> CONNECTION_RECEIVED [label="connect_socket"]
+    WAITING -> DROPPING [label="drop_packet"]
+    WAITING -> DELAYING [label="delay_packet"]
+    DELAYING -> FORWARDING [label="forward_data"]
+    FORWARDING -> WAITING [label="main"]
+
+    
+}

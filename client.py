@@ -10,7 +10,7 @@ sent_graph = Graph("Packets sent from Client")
 retrans_graph = Graph("Retransmissions sent from Client")
 received_graph = Graph("Packets the Client received")
 
-retransmission_time = 1
+retransmission_time = 2
 retransmission_limit = 10
 
 # Change to ipv4 for connection via IPv4 Address or ipv6 for IPv6
@@ -200,7 +200,6 @@ def four_handshake():
         if success:
             expect_fin_ack = False
             break
-
     is_fourway = True
     send_ack()
 
@@ -255,7 +254,7 @@ def send_packet(packet):
 
 def accept_packet():
     try:
-        global retransmission_time, retransimssion_attempts, waiting_state_time, received_graph, expect_fin_ack
+        global retransmission_time, retransimssion_attempts, waiting_state_time, received_graph, expect_fin_ack, received_acks_seq, acknowledgement
         if is_fourway or is_threeway and not expect_fin_ack:
             client.settimeout(waiting_state_time)
         else:
@@ -265,6 +264,8 @@ def accept_packet():
         print("Received packet with flags", packet.flags)
         received_graph.add_packet()
         if expect_fin_ack and packet.flags == [FIN, ACK]:
+           received_acks_seq.append(packet.sequence)
+           acknowledgement = packet.sequence + 1
            return True 
         
         packets_received.append(packet)
@@ -311,7 +312,6 @@ def check_flags(packet):
         return
     else:
         if packet.flags == [SYN, ACK]:
-            print("****************************************")
             packets_sent.pop()
             last_sequence -= 1
             is_threeway = True

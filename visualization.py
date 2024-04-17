@@ -39,8 +39,8 @@ class Graph:
         self.packets.append(time_diff)
 
     def run(self):
-        self.update()
         if len(self.packets) > 1:
+            self.update()
             plt.show()
             return False
         return True

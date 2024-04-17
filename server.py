@@ -141,9 +141,12 @@ def create_sequence():
 
 def check_flags(packet, address):
     global last_sequence, acknowledgement, fourway, connection_established, threeway, acknowledgement, recieved_packet_list, received_data, received_acks_seq
-    if connection_established and packet.flags == [ACK] and packet.sequence in received_acks_seq:
+    if fourway and packet.sequence >= acknowledgement:
+        return True
+    if connection_established and packet.sequence in received_acks_seq:
         return
     if SYN in packet.flags and len(packet.flags) == 1 and is_packet_recieved(packet) == False and not connection_established:
+        print("PACKET START", packet.sequence)
         recieved_packet_list.append(packet)
         create_sequence()
         acknowledgement = packet.sequence + 1
@@ -183,6 +186,8 @@ def check_flags(packet, address):
         else:
             print("Resend the last packet back to client")
             recieved_packet_list.pop()
+            print(packet.sequence)
+            print(acknowledgement)
             handle_retransmission(address)
 
     else:       # if is_packet_recieved == True, send the last packet because if we recieve same packet it means client didnt get the last ack from server
