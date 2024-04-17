@@ -30,7 +30,7 @@ ACK = "ACK"
 PSH = "PSH"
 FIN = "FIN"
 
-packets_sent = [] # MAYBE SORT BY SEQUENCE NUMBER? --> Binary search for correct sequence
+packets_sent = []
 packets_received = []
 received_acks_seq = []
 last_sequence = -1
@@ -65,8 +65,6 @@ def main():
     if processed_data:
         create_socket()
         connect_client()
-        # send_message(words)
-        # receieve_response()
 
 def check_args(args):
     try:
@@ -182,10 +180,6 @@ def three_handshake():
 
 def three_handshake_part_two():
     global is_threeway, connection_established
-    # while True:
-    #     success = waiting_state()
-    #     if success:
-    #         break
     is_threeway = False
     connection_established = True
     transmit_data()
@@ -199,8 +193,7 @@ def four_handshake():
         success = waiting_state()
         if success:
             break
-    
-    #accept_packet()
+
     send_ack()
 
     while True:
@@ -216,13 +209,12 @@ def waiting_state():
     if success:
         return True
     
-    #acknowledgement -= 1
     handle_retransmission()
     
 
 def transmit_data():
     try:
-        data = processed_data.encode() #pickle.dumps(processed_data)
+        data = processed_data.encode()
 
         # Split data into chunks
         chunk_size = MAX_DATA - MAX_HEADER
@@ -231,7 +223,6 @@ def transmit_data():
             send_ack_psh(chunk)
             accept_packet()
 
-        # DATA SHOULD BE DONE TRANSMITTING
         four_handshake()
     except Exception as e:
         handle_error(e)
@@ -286,26 +277,17 @@ def accept_packet():
 def handle_retransmission():
         global retransimssion_attempts, retransmission_limit, last_sequence, retrans_graph
         if retransimssion_attempts >= retransmission_limit:
-            # ! Force close a connection
-            print("MAX RETRANSMISSIONS HIT")
+            print("Max retranmissions hit, force ending connection...")
             cleanup(False)
         retrans_graph.add_packet()
         last_packet_sent = packets_sent.pop()
         last_sequence -= 1
         retransimssion_attempts += 1
-        print(f"Retransmitting {last_packet_sent.flags}")
         send_packet(last_packet_sent)
         accept_packet()
 
 def check_flags(packet):
     global last_sequence, acknowledgement, is_threeway, connection_established, received_acks_seq
-    # if SYN in packet.flags and ACK in packet.flags:
-    #     last_sequence = packet.acknowledgement
-    #     acknowledgement = packet.sequence + 1
-    #     print("RECEIVED A SYN ACK")
-    #     return
-    #     # send_ack()
-    #     # transmit_data()
     if connection_established and packet.sequence in received_acks_seq:
         return
     if packet.sequence == acknowledgement and not is_threeway:
@@ -323,11 +305,8 @@ def check_flags(packet):
     elif SYN in packet.flags and ACK in packet.flags and not connection_established:
         last_sequence = packet.acknowledgement
         acknowledgement = packet.sequence + 1
-        print("RECEIVED SYN ACK")
         return
     else:
-        # print(f"I Received sequence      {packet.sequence}")
-        # print(f"I was expecting sequence {acknowledgement}")
         if packet.flags == [SYN, ACK]:
             packets_sent.pop()
             last_sequence -= 1
@@ -336,9 +315,6 @@ def check_flags(packet):
             handle_retransmission()
             three_handshake_part_two()
             return
-            #last_sequence -= 1
-            # HERE
-            # return
         handle_retransmission()
 
 def send_syn():
@@ -358,7 +334,6 @@ def check_packet_received(packet):
     if packet not in packets_received:
         packets_received.append(packet)
     else:
-        # PACKET IS ALREADY RECEIVED, SOMETHING DROPPED ALONG THE WAY
         if packet.sequence == packets_received[-1].sequence + 1:
             return # Nothin else should be done
         elif packet.sequence > packets_received[-1].sequence + 1:
@@ -366,7 +341,7 @@ def check_packet_received(packet):
             return
         else:
             for packet in packets_received:
-                print(1) #if packet.sequence 
+                print(1)
 
 
 if __name__ == "__main__":
