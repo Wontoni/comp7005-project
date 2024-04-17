@@ -6,9 +6,13 @@ import random
 from packet import Packet
 import sys
 import os
+from visualization import Graph
+
+sent_graph = Graph("Packets sent from Server")
+retrans_graph = Graph("Retransmissions sent from server")
+received_graph = Graph("Packets the Server received")
 
 retransmission_time = 1
-wait_state_time = 1
 
 server = None
 server_host = "::"
@@ -33,7 +37,7 @@ FIN = "FIN"
 
 retransmission_limit = 10
 retransmission_attempts = 0
-
+wait_state_time = retransmission_time
 received_data = ""
 
 def main():
@@ -42,8 +46,6 @@ def main():
         bind_socket()
         while True:
             accept_packet()
-            # formatted_data = handle_data(data)
-            # send_message(formatted_data, address)
     except Exception as e:
         handle_error("Failed to receive data from client")
 
@@ -134,19 +136,9 @@ def send_syn_ack(address):
 
 def send_ack(destination):
     create_packet(destination_address=destination, flags=[ACK])
-    # TRY EXCEPT
-
-def send_fin():
-    print("SEND FIN")
 
 def send_fin_ack(destination):
     create_packet(destination_address=destination, flags=[FIN, ACK])
-
-def request_sequence():
-    print("CORRECT")
-
-def wait_sequence():
-    print("WAIT")
 
 def create_sequence():
     global last_sequence
@@ -160,7 +152,6 @@ def check_flags(packet, address):
     print(f"Received {packet.flags}")
     if connection_established and packet.flags == [ACK] and packet.sequence in received_acks_seq:
         return
-    #print(acknowledgement)
     if SYN in packet.flags and len(packet.flags) == 1 and is_packet_recieved(packet) == False and not connection_established:
         recieved_packet_list.append(packet)
         create_sequence()
@@ -170,7 +161,6 @@ def check_flags(packet, address):
     elif SYN not in packet.flags and not connection_established and not threeway:
         print("Packet received without a connection...")
         return
-        cleanup(True)
 
     elif is_packet_recieved(packet) == False:                   # checks to see if already in list
         recieved_packet_list.append(packet)                     # if it isnt, it will append
@@ -185,27 +175,19 @@ def check_flags(packet, address):
                     return
                     
             elif ACK in packet.flags and PSH in packet.flags: 
-                print("==========-=-=--=--=-=--=-")
-                # print(packet.data.decode())
-                # packet = pickle.loads(packet.data)
                 data = packet.data.decode()
-                # print(data)
                 received_data += data
 
                 if data:
                     send_ack(address)
                 else:
-                    print("ERROR SEND RETRANSMISSION")
-                    #handle_retransmission(address)
+                    return
             elif ACK in packet.flags and FIN in packet.flags:
-                # CHECK CONDITION FOR ENDING - MAYBE
                 four_handshake(address)
             elif ACK in packet.flags and len(packet.flags) == 1 and fourway:
                 received_acks_seq.append(packet.sequence)
                 return True
-                #cleanup(True)
             else:
-                # last_sequence -= 1 # SHOULD THIS BE DONE?
                 print("Bad flags set in packet")
         else:
             print("Resend the last packet back to client")
@@ -213,9 +195,6 @@ def check_flags(packet, address):
             handle_retransmission(address)
 
     else:       # if is_packet_recieved == True, send the last packet because if we recieve same packet it means client didnt get the last ack from server
-        # print(f"I Received sequence      {packet.sequence}")
-        # print(f"I was expecting sequence {acknowledgement}")
-        # print(packet.flags)
         print("Duplicate Packet found. Handling retransmission.")
         handle_retransmission(address)
 
@@ -224,30 +203,21 @@ def create_packet(destination_address, flags=[], data=b''):
     send_packet(crafter_packet, destination_address)
 
 def send_packet(packet, address, is_retransmission=False):
-    global last_sequence, server, retransmission_time, acknowledgement
+    global last_sequence, server, retransmission_time, acknowledgement, sent_graph
     try:
         print(f"Sending {packet.flags}")
-        #server.settimeout(retransmission_time)
         data = pickle.dumps(packet)
         last_sequence += 1
+        sent_graph.add_packet()
         if is_retransmission:
             server.sendto(data, address)
-            # print("retransmitting package")
-            #acknowledgement -= 1
-            # print(f"I received: {packet.sequence}")
-            # print(f"I expected: {acknowledgement}")
-            # print(packet.flags)
             return
 
         if is_packet_sent(packet) == False:                     # if the packet has not been sent
             server.sendto(data, address)
-            sent_packet_list.append(packet)                     #appending the packet to the sent list
-            # print(f"Length of sent packet list: {len(sent_packet_list)}")
-            # print(f"Sending Ack: {packet.acknowledgement}")
-            # print(f"Sending Seq: {packet.sequence}")
+            sent_packet_list.append(packet)                     # appending the packet to the sent 
         else:                                                   # if the packet has been sent dont append to list but send the last
             return
-            print("out of order stuff")
     except socket.timeout:
         if threeway:
             handle_retransmission(address)
@@ -270,7 +240,6 @@ def is_packet_recieved(packet):
         return False
     
     if last_packet.sequence == packet.sequence:
-        #print("Server Recieved Duplicate Packets")
         return True
     
 """
@@ -278,7 +247,8 @@ after recieving a retransmisstion from client, server handles it
 by sending the last packet.
 """
 def handle_retransmission(address):
-    global last_sequence
+    global last_sequence, retrans_graph
+    retrans_graph.add_packet()
     last_packet = get_last_sent_packet()
     last_sequence -= 1
     send_packet(last_packet, address, True)
@@ -288,50 +258,39 @@ Checks to see if the server has already sent the packet
 """
 def is_packet_sent(packet):
     if len(sent_packet_list) == 0:
-        #print("Packet not sent yet")
         return False
     
     last_packet = sent_packet_list[-1]
     if last_packet.acknowledgement >= packet.acknowledgement:
-        #print("Packets already been sent")
         return True
     
     if last_packet.acknowledgement < packet.acknowledgement:
-        #print("Packet has not been sent")
         return False
 
 def accept_packet():
-    global wait_state_time, fourway, retransmission_time, last_sequence, acknowledgement
+    global wait_state_time, fourway, retransmission_time, last_sequence, acknowledgement, received_graph
     try:
+        received_graph.add_packet()
         if fourway:
             server.settimeout(retransmission_time)
-            #get the ack number
-            #check to see if the ack is one above the last appended sequence number sent from server
-            #if it is cut connection
         else:
-            server.settimeout(10)
+            server.settimeout(20)
         data, address = server.recvfrom(MAX_DATA) 
         print("Received packet from", address)
         packet = pickle.loads(data)
-        print(f"Expected Seq: {acknowledgement}")
-        print(f"Recieved Seq: {packet.sequence}")
         success = check_flags(packet, address)
         is_packet_recieved(packet)
-        #print(f"Length of recieved packet list: {len(recieved_packet_list)}")
         return success
     except socket.timeout:
         if fourway:
-            #acknowledgement -= 1
             return False
-            #last_sequence -= 1
-            #handle_retransmission(last_address)
         else:
             cleanup(True)
     except Exception as e:
         handle_error(e)
 
 def reset_server():
-    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list, connection_established, received_acks_seq, received_data
+    global server, last_sequence, acknowledgement, fourway, recieved_packet_list, sent_packet_list, connection_established, received_acks_seq, received_data, retrans_graph, sent_graph
     server = None
     connection_established = False
     
@@ -342,9 +301,10 @@ def reset_server():
     recieved_packet_list.clear()
     sent_packet_list.clear()
     received_acks_seq.clear()
+    retrans_graph.reset()
+    sent_graph.reset()
 
 def four_handshake(address):
-    # Should've received a fin ack to initiate this
     global fourway, last_sequence
     send_fin_ack(address)
     fourway = True
@@ -363,28 +323,38 @@ def display_data():
         print("Data Received from Client:")
         print(response)
     except Exception as e:
-        print(e)
-        #handle_error("Failed to handle data received")
+        handle_error("Failed to handle data received")
 
 
 def handle_error(err_message):
     print(f"Error: {err_message}")
     cleanup(False)
+
+def display_graphs():
+    global sent_graph, retrans_graph, received_graph
+    print("Displaying packets sent graph")
+    sent_graph.run()
+
+    print("Displaying retransmission graph")
+    retrans_graph.run()
     
+    print("Displaying packets received graph")
+    received_graph.run()
+
 def cleanup(success):
     global received_data
-    # os.system('clear')
     display_data()
     print("Closing Connection")
-
+    display_graphs()
     if server:
         server.close()
     if success:
         reset_server()
         main()
-        # exit(0)
+        #exit(0)
     exit(1)
-    
+
+
 
 main()
 
