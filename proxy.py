@@ -47,8 +47,6 @@ def check_args():
     max_server_delay = args.smax
     min_server_delay = args.smin
 
-    print(max_client_delay)
-    print(min_client_delay)
     if percent_client_drop < 0 or percent_client_drop > 1:
         handle_error("Client drop percentage must be from 0-100")
     elif percent_server_drop < 0 or percent_server_drop > 1:
