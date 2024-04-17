@@ -19,16 +19,19 @@ percent_server_delay = 0
 min_server_delay = 0
 max_server_delay = 0
 
+default_min = 1
+default_max = 2
+
 def check_args():
     parser = argparse.ArgumentParser(description="UDP Proxy for simulating network conditions.")
     parser.add_argument("-cpdrop", type=int, help="Percentage of packets to drop from client to server", default=0)
     parser.add_argument("-cpdelay", type=int, help="Percentage of packets to delay from client to server", default=0)
-    parser.add_argument("-cmax", type=int, help="Maximum delay in milliseconds for client packets", default=0)
-    parser.add_argument("-cmin", type=int, help="Minimum delay in milliseconds for client packets", default=0)
+    parser.add_argument("-cmax", type=int, help="Maximum delay in milliseconds for client packets", default=default_max)
+    parser.add_argument("-cmin", type=int, help="Minimum delay in milliseconds for client packets", default=default_min)
     parser.add_argument("-spdrop", type=int, help="Percentage of packets to drop from server to client", default=0)
     parser.add_argument("-spdelay", type=int, help="Percentage of packets to delay from server to client", default=0)
-    parser.add_argument("-smax", type=int, help="Maximum delay in milliseconds for server packets", default=0)
-    parser.add_argument("-smin", type=int, help="Minimum delay in milliseconds for server packets", default=0)
+    parser.add_argument("-smax", type=int, help="Maximum delay in milliseconds for server packets", default=default_max)
+    parser.add_argument("-smin", type=int, help="Minimum delay in milliseconds for server packets", default=default_min)
     
     args = parser.parse_args()
 
@@ -43,6 +46,19 @@ def check_args():
     percent_server_delay = args.spdelay / 100.0
     max_server_delay = args.smax
     min_server_delay = args.smin
+
+    if percent_client_drop < 0 or percent_client_drop > 1:
+        handle_error("Client drop percentage must be from 0-100")
+    elif percent_server_drop < 0 or percent_server_drop > 1:
+        handle_error("Server drop percentage must be from 0-100")
+    elif min_client_delay < 0:
+        handle_error("Client delay minimum needs to be > 0")
+    elif min_server_delay < 0:
+        handle_error("Server delay minmium needs to be > 0")
+    elif percent_client_delay < 0 or percent_client_delay > 1:
+        handle_error("Client delay percentage must be from 0-100")
+    elif percent_server_delay < 0 or percent_server_delay > 1:
+        handle_error("Server delay percentage must be from 0-100")
 
 def check_int(argument):
     if not argument.isnumeric() or int(argument) > 100 or int(argument) < 0:
