@@ -5,6 +5,7 @@ import select
 import time
 from packet_utils import drop_packet, delay_packet
 import asyncio
+import ipaddress
 
 SERVER = "SERVER"
 CLIENT ="CLIENT"
@@ -20,6 +21,7 @@ min_server_delay = 0
 max_server_delay = 0
 
 default_diff = 2
+server_ip = ""
 
 def check_args():
     parser = argparse.ArgumentParser(description="UDP Proxy for simulating network conditions.")
@@ -31,10 +33,11 @@ def check_args():
     parser.add_argument("-spdelay", type=int, help="Percentage of packets to delay from server to client", default=0)
     parser.add_argument("-smax", type=int, help="Maximum delay in milliseconds for server packets", default=0)
     parser.add_argument("-smin", type=int, help="Minimum delay in milliseconds for server packets", default=0)
+    parser.add_argument("-ip")
     
     args = parser.parse_args()
     global percent_client_drop, percent_client_delay, min_client_delay, max_client_delay
-    global percent_server_drop, percent_server_delay, min_server_delay, max_server_delay
+    global percent_server_drop, percent_server_delay, min_server_delay, max_server_delay, server_ip
     
     percent_client_drop = args.cpdrop / 100.0
     percent_client_delay = args.cpdelay / 100.0
@@ -44,8 +47,11 @@ def check_args():
     percent_server_delay = args.spdelay / 100.0
     max_server_delay = args.smax
     min_server_delay = args.smin
+    server_ip =  args.ip
 
-    if percent_client_drop < 0 or percent_client_drop > 1:
+    if server_ip == "":
+        handle_error("Missing -ip  field")
+    elif percent_client_drop < 0 or percent_client_drop > 1:
         handle_error("Client drop percentage must be from 0-100")
     elif percent_server_drop < 0 or percent_server_drop > 1:
         handle_error("Server drop percentage must be from 0-100")
@@ -61,14 +67,30 @@ def check_args():
         handle_error("Client delay minimum must be bigger than the client delay maximum")
     elif min_server_delay > max_server_delay:
         handle_error("Server delay minimum must be bigger than the server delay minimum")
-    elif percent_client_delay == 0 and min_client_delay != 0 or max_client_delay != 0:
+    elif percent_client_delay == 0 and (min_client_delay != 0 or max_client_delay != 0):
         handle_error("Client delay percentage not set with min or max delays")
-    elif percent_server_delay == 0 and min_server_delay != 0 or max_server_delay != 0:
+    elif percent_server_delay == 0 and (min_server_delay != 0 or max_server_delay != 0):
         handle_error("Server delay percentage not set with min or max delays") 
+        
     if percent_client_delay > 0 and min_client_delay == 0 and max_client_delay == 0:
         max_client_delay = default_diff
     if percent_server_delay > 0 and min_server_delay == 0 and max_server_delay == 0:
         max_server_delay = default_diff
+
+def is_ipv4(ip_str):
+    try:
+        ipaddress.IPv4Address(ip_str)
+        return True
+    except ipaddress.AddressValueError:
+        pass
+
+    try:
+        ipaddress.IPv6Address(ip_str)
+        return False
+    except ipaddress.AddressValueError:
+        pass
+    err_message = "Invalid IP Address found."
+    handle_error(err_message)
     
 
 def forward_data(message, source_address, destination_socket, destination_address):
@@ -77,15 +99,14 @@ def forward_data(message, source_address, destination_socket, destination_addres
 
 async def main():
     # Proxy server configuration
+    global server_ip
+    check_args()
     proxy_host = "::"
     proxy_port = 5173
-    server_address = ('::1', 8080)  # Change to the target server's IP and port
-
-    check_args()
+    server_address = (server_ip, 8080)  # Change to the target server's IP and port
     # Create a UDP socket for the proxy
-    proxy_socket = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+    proxy_socket = socket.socket((socket.AF_INET6, socket.AF_INET)[is_ipv4(server_ip)], socket.SOCK_DGRAM)
     proxy_socket.bind((proxy_host, proxy_port))
-
     print(f"[*] Listening for UDP traffic on {proxy_host}:{proxy_port}")
 
     # Sockets from which we expect to read (in this case, only one)
@@ -112,7 +133,6 @@ async def main():
                         inputs.append(server_socket)
                     
                     # Forward the data to the server
-                    # time.sleep(2)
                     forward_data(data, address, *client_addresses[address])
                 else:
                     print("Dropped packet")
