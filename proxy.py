@@ -47,6 +47,8 @@ def check_args():
     max_server_delay = args.smax
     min_server_delay = args.smin
 
+    print(max_client_delay)
+    print(min_client_delay)
     if percent_client_drop < 0 or percent_client_drop > 1:
         handle_error("Client drop percentage must be from 0-100")
     elif percent_server_drop < 0 or percent_server_drop > 1:
@@ -59,6 +61,10 @@ def check_args():
         handle_error("Client delay percentage must be from 0-100")
     elif percent_server_delay < 0 or percent_server_delay > 1:
         handle_error("Server delay percentage must be from 0-100")
+    elif min_client_delay > max_client_delay:
+        handle_error("Client delay minimum must be bigger than the client delay maximum")
+    elif min_server_delay > max_server_delay:
+        handle_error("Server delay minimum must be bigger than the server delay minimum")
 
 def check_int(argument):
     if not argument.isnumeric() or int(argument) > 100 or int(argument) < 0:
